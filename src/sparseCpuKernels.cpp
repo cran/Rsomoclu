@@ -18,8 +18,11 @@
  */
 
 #include <cmath>
-#include <Rconfig.h>
 #include "somoclu.h"
+
+#ifdef HAVE_R
+#include <Rconfig.h>
+#endif
 
 /** Distance b/w a feature vector and a weight vector
  * = Euclidean
