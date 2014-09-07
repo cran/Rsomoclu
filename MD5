@@ -1,4 +1,4 @@
-79e57264486c85cb8c8e1dc924e334d7 *DESCRIPTION
+5d76a3c0bffe291f7afa016db03ebd87 *DESCRIPTION
 b31386e1c23d6cb01c1d1a5b9c4fab92 *NAMESPACE
 5f69e06a26617e15f59e239ae5c4d884 *R/Rsomoclu.R
 2b6555eef993bb651ae2b9c9126dee37 *data/rgbs.txt.gz
@@ -7,11 +7,11 @@ b47666eb8a3fd0aa35920b0b84ca3feb *man/rgbs.Rd
 ea099a1fa241ddaf46057c88ec5ccdbc *src/Makevars
 8f2c7781414bfda0a8e4349ec920ef17 *src/Makevars.win
 94b2d1e477cf4682220e84b9e3ba41ea *src/Rsomoclu.cpp
-787dd074e607214a47a4bce1c12d4610 *src/denseCpuKernels.cpp
+501220b43550c1a287b5d5af4ba3f371 *src/denseCpuKernels.cpp
 b23703f57f139bcbbb381a175355e067 *src/mapDistanceFunctions.cpp
 8bdbd8afdb0ecbe7804cc415bd9c45fc *src/somoclu.h
 3e710037ab79cd32c8b439ffb888185f *src/somocluWrap.h
-2e66d84a7a54107bbc1c1435282028bb *src/sparseCpuKernels.cpp
-53180830e6f2f5bca7978a974aad5fdc *src/trainOneEpoch.cpp
+698b81c6fd6ff3413e53238994118f4c *src/sparseCpuKernels.cpp
+c7ba06381caa8ad2594aa87645e6a79a *src/trainOneEpoch.cpp
 9c8941be54d25c746b8f8a3a3acab197 *src/uMatrix.cpp
 9c1deb542c6787a5bd56dd53b1892f98 *tests/R_interface_test.R
