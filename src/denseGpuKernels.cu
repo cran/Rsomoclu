@@ -21,6 +21,7 @@
 #undef _GLIBCXX_USE_INT128
 
 #include <iostream>
+#include <sstream>
 #include <map>
 #include <vector>
 #include <stdio.h>
@@ -41,8 +42,9 @@
 #define CUDA_CHECK(call) \
     if((call) != cudaSuccess) { \
         cudaError_t err = cudaGetLastError(); \
-        cerr << "CUDA error calling \""#call"\", code is " << err << endl; \
-        my_abort(err); }
+        stringstream sstm; \
+        sstm << "CUDA error calling \""#call"\", code is " << err; \
+        my_abort(sstm.str()); }
 
 //Globals
 cublasHandle_t handle;
@@ -163,8 +165,7 @@ void freeGpu() {
     thrust::device_vector<float>().swap(deviceCodebookNorms);
     cublasStatus_t status = cublasDestroy(handle);
     if (status != CUBLAS_STATUS_SUCCESS) {
-        cerr << "!!!! shutdown error (A)\n";
-        my_abort(-1);
+        my_abort("CuBLAS shutdown error");
     }
 }
 
@@ -193,8 +194,7 @@ void getBmusOnGpu(unsigned int *bmus, float *codebook, int nSomX, int nSomY, int
                                         &beta,  thrust::raw_pointer_cast(&deviceGramMatrix[0]), nSomX * nSomY);
 
     if (status != CUBLAS_STATUS_SUCCESS) {
-        cerr << "!!!! kernel execution error.\n";
-        my_abort(-1);
+        my_abort("Kernel execution error.");
     }
 
     //All components of the vectorized Euclidean distance are available
@@ -231,8 +231,7 @@ void initializeGpu(float *hostData, int nVectorsPerRank, int nDimensions, int nS
     /* Initialize CUBLAS */
     cublasStatus_t status = cublasCreate(&handle);
     if (status != CUBLAS_STATUS_SUCCESS) {
-        cerr << "!!!! CUBLAS initialization error\n";
-        my_abort(-1);
+        my_abort("CuBLAS initialization error");
     }
     deviceData = thrust::device_vector<float>(hostData, hostData + nVectorsPerRank * nDimensions);
     deviceDataNorms = normsOfRowSpace<float>(deviceData, nVectorsPerRank, nDimensions);
@@ -287,10 +286,9 @@ void setDevice(int commRank, int commSize) {
         // check to make sure that we don't have more jobs on a node than we have GPUs.
         for (map<string, vector<int> >::iterator it = hosts.begin(); it != hosts.end(); ++it) {
             if (it->second.size() > static_cast<unsigned int>(devCounts[it->first])) {
-                printf("Error, more jobs running on '%s' than devices - %d jobs > %d devices.\n",
-                       it->first.c_str(), static_cast<int>(it->second.size()), devCounts[it->first]);
-                fflush(stdout);
-                my_abort(1);
+                stringstream sstm;
+                sstm << "Error, more jobs running on " << it->first.c_str() << " than devices - " << static_cast<int>(it->second.size()) << " jobs > " << devCounts[it->first] << " devices.";
+                my_abort(sstm.str());
             }
         }
 
@@ -324,9 +322,9 @@ void trainOneEpochDenseGPU(int itask, float *data, float *numerator,
                            unsigned int nDimensions, unsigned int nVectors,
                            unsigned int nVectorsPerRank, float radius,
                            float scale, string mapType, string gridType,
-                           bool compact_support, int *globalBmus) {
+                           bool compact_support, bool gaussian, int *globalBmus) {
 #ifdef _WIN32
-    int* bmus = (int *)alloca(sizeof(int) * nVectorsPerRank * 2);
+	unsigned int* bmus = (unsigned int *)alloca(sizeof(unsigned int)* nVectorsPerRank * 2);
 #else
     unsigned int *bmus = new unsigned int[nVectorsPerRank * 2];
 #endif
@@ -367,7 +365,7 @@ void trainOneEpochDenseGPU(int itask, float *data, float *numerator,
                                 dist = euclideanDistanceOnHexagonalToroidMap(som_x, som_y, bmus[2 * n], bmus[2 * n + 1], nSomX, nSomY);
                             }
                         }
-                        float neighbor_fuct = getWeight(dist, radius, scale, compact_support);
+                        float neighbor_fuct = getWeight(dist, radius, scale, compact_support, gaussian);
 
                         for (unsigned int d = 0; d < nDimensions; d++) {
                             localNumerator[som_y * nSomX * nDimensions + som_x * nDimensions + d] +=

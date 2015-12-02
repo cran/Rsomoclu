@@ -6,17 +6,6 @@ using namespace Rcpp;
 
 #include"somoclu.h"
 
-#ifdef CUDA
-void my_abort(int err) {
-    cerr << "Aborted\n";
-#ifdef HAVE_MPI
-    MPI_Abort(MPI_COMM_WORLD, err);
-#else
-    exit(err);
-#endif
-}
-#endif
-
 RcppExport SEXP Rtrain(SEXP data_p,
                        SEXP nEpoch_p,
                        SEXP nSomX_p, SEXP nSomY_p,
@@ -26,6 +15,7 @@ RcppExport SEXP Rtrain(SEXP data_p,
                        SEXP scaleCooling_p,
                        SEXP kernelType_p, SEXP mapType_p,
                        SEXP gridType_p, SEXP compactSupport_p,
+                       SEXP neighborhood_p,
                        SEXP codebook_p) {
     Rcpp::NumericMatrix dataMatrix(data_p);
     Rcpp::NumericVector codebook_vec(codebook_p);
@@ -44,8 +34,10 @@ RcppExport SEXP Rtrain(SEXP data_p,
     bool compactSupport = as<bool>(compactSupport_p);
     string mapType = as<string>(mapType_p);
     string gridType = as<string>(gridType_p);
+    string neighborhood = as<string>(neighborhood_p);
     int data_length = nVectors * nDimensions;
     float* data = new float[data_length];
+    int uMatrix_size = nSomX * nSomY;
     // convert matrix to data c float array
     for(int i = 0; i < nVectors; i++) {
         for(int j = 0; j < nDimensions; j++) {
@@ -54,35 +46,31 @@ RcppExport SEXP Rtrain(SEXP data_p,
     }
     int codebook_size =  nSomY * nSomX * nDimensions;
     float* codebook = new float[codebook_size];
-    for(int som_y = 0; som_y < nSomY; ++som_y) {
-        for(int som_x = 0; som_x < nSomX; ++som_x) {
-            for(int d = 0; d < nDimensions; ++d) {
-                codebook[som_y * nSomX * nDimensions + som_x * nDimensions + d] = (float) codebook_vec(som_y * nSomX * nDimensions + som_x * nDimensions + d);
-            }
-        }
-    }
+	for(int i = 0; i < uMatrix_size; i++) {
+		for(int j = 0; j < nDimensions; j++) {
+			codebook[i * nDimensions + j] = (float) codebook_vec(i ,j);
+		}
+	}
 
     int globalBmus_size = nVectors * 2;
-    int uMatrix_size = nSomX * nSomY;
+
     int* globalBmus = new int[globalBmus_size];
     float* uMatrix = new float[uMatrix_size];
     train(data, data_length, nEpoch, nSomX, nSomY,
           nDimensions, nVectors, radius0, radiusN,
           radiusCooling, scale0, scaleN, scaleCooling,
           kernelType, mapType,
-          gridType, compactSupport,
+          gridType, compactSupport, neighborhood == "gaussian",
           codebook, codebook_size, globalBmus, globalBmus_size,
           uMatrix, uMatrix_size);
     Rcpp::NumericVector globalBmus_vec(globalBmus_size);
     Rcpp::NumericVector uMatrix_vec(uMatrix_size);
     if(codebook != NULL) {
-        for(int som_y = 0; som_y < nSomY; ++som_y) {
-            for(int som_x = 0; som_x < nSomX; ++som_x) {
-                for(int d = 0; d < nDimensions; ++d) {
-                    codebook_vec(som_y * nSomX * nDimensions + som_x * nDimensions + d) = codebook[som_y * nSomX * nDimensions + som_x * nDimensions + d];
-                }
-            }
-        }
+    	for(int i = 0; i < uMatrix_size; i++) {
+    			for(int j = 0; j < nDimensions; j++) {
+    				codebook_vec(i ,j) = (float) codebook[i * nDimensions + j];
+    			}
+    		}
     }
     if(globalBmus != NULL) {
         for(int i = 0; i < globalBmus_size; i++) {

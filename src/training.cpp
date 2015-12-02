@@ -23,13 +23,33 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-#endif
+#else
+#include <stdexcept>
+#endif  // CLI
 #ifdef HAVE_R
 #include <R.h>
-#endif
+#endif  // HAVE_R
 #include "somoclu.h"
 
 using namespace std;
+
+void my_abort(string err) {
+#ifdef CLI
+#ifdef HAVE_MPI
+    int rank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        cerr << "Error: " << err << endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, 1);
+#else
+    cerr << "Error: " << err << endl;
+    exit(1);
+#endif  // HAVE_MPI
+#else
+    throw std::runtime_error(err);
+#endif  // CLI
+}
 
 void train(float *data, int data_length, unsigned int nEpoch,
            unsigned int nSomX, unsigned int nSomY,
@@ -37,7 +57,7 @@ void train(float *data, int data_length, unsigned int nEpoch,
            unsigned int radius0, unsigned int radiusN, string radiusCooling,
            float scale0, float scaleN, string scaleCooling,
            unsigned int kernelType, string mapType,
-           string gridType, bool compact_support,
+           string gridType, bool compact_support, bool gaussian,
            float *codebook, int codebook_size,
            int *globalBmus, int globalBmus_size,
            float *uMatrix, int uMatrix_size) {
@@ -46,7 +66,7 @@ void train(float *data, int data_length, unsigned int nEpoch,
           nEpoch, radius0, radiusN, radiusCooling,
           scale0, scaleN, scaleCooling,
           kernelType, mapType,
-          gridType, compact_support
+          gridType, compact_support, gaussian
 #ifdef CLI
           , "", 0);
 #else
@@ -64,7 +84,7 @@ void train(int itask, float *data, svm_node **sparseData,
            unsigned int radius0, unsigned int radiusN, string radiusCooling,
            float scale0, float scaleN, string scaleCooling,
            unsigned int kernelType, string mapType,
-           string gridType, bool compact_support
+           string gridType, bool compact_support, bool gaussian
 #ifdef CLI
            , string outPrefix, unsigned int snapshots)
 #else
@@ -117,7 +137,7 @@ void train(int itask, float *data, svm_node **sparseData,
                       nSomX, nSomY, nDimensions, nVectors, nVectorsPerRank,
                       radius0, radiusN, radiusCooling,
                       scale0, scaleN, scaleCooling, kernelType, mapType,
-                      gridType, compact_support);
+                      gridType, compact_support, gaussian);
 #ifdef CLI
         if (snapshots > 0 && itask == 0) {
             calculateUMatrix(uMatrix, codebook, nSomX, nSomY, nDimensions,
@@ -223,7 +243,7 @@ void trainOneEpoch(int itask, float *data, svm_node **sparseData,
                    float scale0, float scaleN,
                    string scaleCooling,
                    unsigned int kernelType, string mapType,
-                   string gridType, bool compact_support) {
+                   string gridType, bool compact_support, bool gaussian) {
 
     float N = (float)nEpoch;
     float *numerator;
@@ -272,21 +292,21 @@ void trainOneEpoch(int itask, float *data, svm_node **sparseData,
         trainOneEpochDenseCPU(itask, data, numerator, denominator,
                               codebook, nSomX, nSomY, nDimensions,
                               nVectors, nVectorsPerRank, radius, scale,
-                              mapType, gridType, compact_support, globalBmus);
+                              mapType, gridType, compact_support, gaussian, globalBmus);
         break;
 #ifdef CUDA
     case DENSE_GPU:
         trainOneEpochDenseGPU(itask, data, numerator, denominator,
                               codebook, nSomX, nSomY, nDimensions,
                               nVectors, nVectorsPerRank, radius, scale,
-                              mapType, gridType, compact_support, globalBmus);
+                              mapType, gridType, compact_support, gaussian, globalBmus);
         break;
 #endif
     case SPARSE_CPU:
         trainOneEpochSparseCPU(itask, sparseData, numerator, denominator,
                                codebook, nSomX, nSomY, nDimensions,
                                nVectors, nVectorsPerRank, radius, scale,
-                               mapType, gridType, compact_support, globalBmus);
+                               mapType, gridType, compact_support, gaussian, globalBmus);
         break;
     }
 
