@@ -37,6 +37,12 @@ Rsomoclu.train(input_data, nEpoch, nSomX, nSomY,
   \item{codebook}{initial codebook, (default:NULL)}
   %% \item{initialCodebookFilename}{Specify an initial codebook for the map}
 }
+\value{
+  a list including elements
+  \item{codebook}{the codebook}
+  \item{globalBmus}{global Best Matching Unit matrix}
+  \item{uMatrix}{uMatrix}
+}
 \references{Peter Wittek, Shi Chao Gao, Ik Soo Lim, Li Zhao (2015). Somoclu: An Efficient Parallel Library for Self-Organizing Maps. arXiv:1305.1422.}
 \author{Peter Wittek, Shichao Gao}
 \examples{
@@ -53,7 +59,7 @@ radiusCooling <- "linear"
 scale0 <- 0
 scaleN <- 0.01
 scaleCooling <- "linear"
-kernelType <- 1
+kernelType <- 0
 mapType <- "planar"
 gridType <- "rectangular"
 compactSupport <- FALSE
@@ -67,4 +73,6 @@ res <- Rsomoclu.train(input_data, nEpoch, nSomX, nSomY,
 res$codebook
 res$globalBmus
 res$uMatrix
+library('kohonen')
+sommap = Rsomoclu.kohonen(input_data, res)
 }
