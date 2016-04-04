@@ -1,8 +1,8 @@
-f159bd04f21e8e74fb5f27c466c11cb7 *DESCRIPTION
+cffe0a193a057ed40a29aad740ec07cc *DESCRIPTION
 c8ff3e85a73befad5d0a6e8263661eea *NAMESPACE
 3fcf387b8e7b4a208e53c7ecd409d18d *R/Rsomoclu.R
 6c7594e8a63974aca6b766f2444e7379 *configure
-6912f2c44a06b0d542cb2cfcc02687d1 *data/rgbs.txt.gz
+63343a2512a27efc42a02caee7a0bb4a *data/rgbs.txt.gz
 0f91991d9b511e83075c44e126bed297 *man/Rsomoclu.kohonen.Rd
 b8260d09840010c1ec39947d2557ecc5 *man/Rsomoclu.train.Rd
 b47666eb8a3fd0aa35920b0b84ca3feb *man/rgbs.Rd
@@ -12,13 +12,13 @@ ea099a1fa241ddaf46057c88ec5ccdbc *src/Makevars
 8f2c7781414bfda0a8e4349ec920ef17 *src/Makevars.win
 225ec9012ddbab16225b06bca58d3b15 *src/Rsomoclu.cpp
 47d42c9c07521481f6925f709203bbd0 *src/config.h.in
-5e011dd7e396fbea54410a5135fa47e8 *src/configure
+4cdd648b1d77ed5647397df5b2b4fdae *src/configure
 0bc52c06d02e8aec6c8238159d739970 *src/denseCpuKernels.cpp
 930fb86bdf540f26ce5401bf16a7124c *src/denseGpuKernels.cu
 6e5fe73723cd40a28adc5b7b5650c8d1 *src/install-sh
 a52bdac71b1759cdd21c8074a5460ca4 *src/mapDistanceFunctions.cpp
 7067c013093b2b61aa7c8262d021be41 *src/somoclu.h
 6a6a155dd708cec2f23d8ba268120f80 *src/sparseCpuKernels.cpp
-0668dfda8c442bed37cb4d19ef7a7f9b *src/training.cpp
+2d819a3d4354d417e411148bb3a5a7b2 *src/training.cpp
 612dfa1e617057bcde1345ba632f41be *src/uMatrix.cpp
 64f65db7ef4b57af76fe30b46db72ba9 *tests/R_interface_test.R
