@@ -139,7 +139,6 @@ void train(int itask, float *data, svm_node **sparseData,
 #ifdef HAVE_MPI
         double epoch_time = MPI_Wtime();
 #endif
-
         trainOneEpoch(itask, data, sparseData, codebook, globalBmus,
                       nEpoch, currentEpoch,
                       nSomX, nSomY, nDimensions, nVectors, nVectorsPerRank,
@@ -179,6 +178,12 @@ void train(int itask, float *data, svm_node **sparseData,
 #endif
 #endif
     }
+    trainOneEpoch(itask, data, sparseData, codebook, globalBmus,
+                  nEpoch, currentEpoch,
+                  nSomX, nSomY, nDimensions, nVectors, nVectorsPerRank,
+                  radius0, radiusN, radiusCooling,
+                  scale0, scaleN, scaleCooling, kernelType, mapType,
+                  gridType, compact_support, gaussian, true);
 #ifdef CUDA
     if (kernelType == DENSE_GPU) {
         freeGpu();
@@ -222,9 +227,14 @@ void initializeCodebook(unsigned int seed, float *codebook, unsigned int nSomX,
 #else
     srand(seed);
 #endif
-    for (unsigned int som_y = 0; som_y < nSomY; som_y++) {
-        for (unsigned int som_x = 0; som_x < nSomX; som_x++) {
-            for (unsigned int d = 0; d < nDimensions; d++) {
+    #pragma omp parallel for
+#ifdef _WIN32
+    for (int som_y = 0; som_y < nSomY; som_y++) {
+#else
+	for (unsigned int som_y = 0; som_y < nSomY; som_y++) {
+#endif
+		for (unsigned int som_x = 0; som_x < nSomX; som_x++) {
+			for (unsigned int d = 0; d < nDimensions; d++) {
 #ifdef HAVE_R
                 int w = 0xFFF & (int) (RAND_MAX * unif_rand());
 #else
@@ -251,14 +261,16 @@ void trainOneEpoch(int itask, float *data, svm_node **sparseData,
                    float scale0, float scaleN,
                    string scaleCooling,
                    unsigned int kernelType, string mapType,
-                   string gridType, bool compact_support, bool gaussian) {
+                   string gridType, bool compact_support, bool gaussian,
+                   bool only_bmus) {
 
     float N = (float)nEpoch;
     float *numerator;
     float *denominator;
     float scale = scale0;
     float radius = radius0;
-    if (itask == 0) {
+    if (itask == 0 && !only_bmus) {
+#ifdef HAVE_MPI      
         numerator = new float[nSomY * nSomX * nDimensions];
         denominator = new float[nSomY * nSomX];
         for (unsigned int som_y = 0; som_y < nSomY; som_y++) {
@@ -269,7 +281,7 @@ void trainOneEpoch(int itask, float *data, svm_node **sparseData,
                 }
             }
         }
-
+#endif
         if (radiusCooling == "linear") {
             radius = linearCooling(float(radius0), radiusN, N, currentEpoch);
         }
@@ -285,10 +297,12 @@ void trainOneEpoch(int itask, float *data, svm_node **sparseData,
 //        cout << "Epoch: " << currentEpoch << " Radius: " << radius << endl;
     }
 #ifdef HAVE_MPI
-    MPI_Bcast(&radius, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&scale, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(codebook, nSomY * nSomX * nDimensions, MPI_FLOAT,
-              0, MPI_COMM_WORLD);
+    if (!only_bmus) {
+        MPI_Bcast(&radius, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&scale, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Bcast(codebook, nSomY * nSomX * nDimensions, MPI_FLOAT,
+                  0, MPI_COMM_WORLD);
+    }
 #endif
 
     /// 1. Each task fills localNumerator and localDenominator
@@ -300,14 +314,15 @@ void trainOneEpoch(int itask, float *data, svm_node **sparseData,
         trainOneEpochDenseCPU(itask, data, numerator, denominator,
                               codebook, nSomX, nSomY, nDimensions,
                               nVectors, nVectorsPerRank, radius, scale,
-                              mapType, gridType, compact_support, gaussian, globalBmus);
+                              mapType, gridType, compact_support, gaussian,
+                              globalBmus, only_bmus);
         break;
     case DENSE_GPU:
 #ifdef CUDA
         trainOneEpochDenseGPU(itask, data, numerator, denominator,
                               codebook, nSomX, nSomY, nDimensions,
                               nVectors, nVectorsPerRank, radius, scale,
-                              mapType, gridType, compact_support, gaussian, globalBmus);
+                              mapType, gridType, compact_support, gaussian, globalBmus, only_bmus);
 #else
         my_abort("Compiled without CUDA!");
 #endif
@@ -316,15 +331,15 @@ void trainOneEpoch(int itask, float *data, svm_node **sparseData,
         trainOneEpochSparseCPU(itask, sparseData, numerator, denominator,
                                codebook, nSomX, nSomY, nDimensions,
                                nVectors, nVectorsPerRank, radius, scale,
-                               mapType, gridType, compact_support, gaussian, globalBmus);
+                               mapType, gridType, compact_support, gaussian,
+                               globalBmus, only_bmus);
         break;
     }
 
     /// 3. Update codebook using numerator and denominator
 #ifdef HAVE_MPI
     MPI_Barrier(MPI_COMM_WORLD);
-#endif
-    if (itask == 0) {
+    if (itask == 0 && !only_bmus) {
         #pragma omp parallel for
 #ifdef _WIN32
         for (int som_y = 0; som_y < nSomY; som_y++) {
@@ -342,9 +357,8 @@ void trainOneEpoch(int itask, float *data, svm_node **sparseData,
                 }
             }
         }
-    }
-    if (itask == 0) {
         delete [] numerator;
         delete [] denominator;
     }
+#endif // HAVE_MPI    
 }

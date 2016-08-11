@@ -178,7 +178,7 @@ void freeGpu() {
  * @param nVectorsPerRank - the number of data points assigned to this GPU
  */
 
-void getBmusOnGpu(unsigned int *bmus, float *codebook, int nSomX, int nSomY, int nDimensions, int nVectorsPerRank) {
+void getBmusOnGpu(int *bmus, float *codebook, int nSomX, int nSomY, int nDimensions, int nVectorsPerRank) {
     deviceCodebook = thrust::device_vector<float>(codebook, codebook + nSomX * nSomY * nDimensions);
     deviceCodebookNorms = normsOfRowSpace<float>(deviceCodebook, nSomX * nSomY, nDimensions);
     thrust::device_vector<float> deviceGramMatrix(nSomX * nSomY * nVectorsPerRank, 0);
@@ -322,29 +322,53 @@ void trainOneEpochDenseGPU(int itask, float *data, float *numerator,
                            unsigned int nDimensions, unsigned int nVectors,
                            unsigned int nVectorsPerRank, float radius,
                            float scale, string mapType, string gridType,
-                           bool compact_support, bool gaussian, int *globalBmus) {
-#ifdef _WIN32
-	unsigned int* bmus = (unsigned int *)alloca(sizeof(unsigned int)* nVectorsPerRank * 2);
+                           bool compact_support, bool gaussian,
+                           int *globalBmus, bool only_bmus) {
+    int *bmus;
+#ifdef HAVE_MPI
+    bmus = new int[nVectorsPerRank * 2];
 #else
-    unsigned int *bmus = new unsigned int[nVectorsPerRank * 2];
+    bmus = globalBmus;
 #endif
     getBmusOnGpu(bmus, codebook, nSomX, nSomY, nDimensions, nVectorsPerRank);
+    if (only_bmus) {
+#ifdef HAVE_MPI
+        MPI_Gather(bmus, nVectorsPerRank * 2, MPI_INT, globalBmus, nVectorsPerRank * 2, MPI_INT, 0, MPI_COMM_WORLD);
+        delete [] bmus;
+#endif
+        return;
+    }
+#ifdef HAVE_MPI
     float *localNumerator = new float[nSomY * nSomX * nDimensions];
     float *localDenominator = new float[nSomY * nSomX];
-
-    #pragma omp parallel default(shared)
-    {
-        #pragma omp for
-        for (unsigned int som_y = 0; som_y < nSomY; som_y++) {
-            for (unsigned int som_x = 0; som_x < nSomX; som_x++) {
-                localDenominator[som_y * nSomX + som_x] = 0.0;
-                for (unsigned int d = 0; d < nDimensions; d++)
-                    localNumerator[som_y * nSomX * nDimensions + som_x * nDimensions + d] = 0.0;
-            }
+    #pragma omp for
+#ifdef _WIN32
+    for (int som_y = 0; som_y < nSomY; som_y++) {
+#else
+    for (unsigned int som_y = 0; som_y < nSomY; som_y++) {
+#endif // _WIN32
+        for (unsigned int som_x = 0; som_x < nSomX; som_x++) {
+            localDenominator[som_y * nSomX + som_x] = 0.0;
+            for (unsigned int d = 0; d < nDimensions; d++)
+                localNumerator[som_y * nSomX * nDimensions + som_x * nDimensions + d] = 0.0;
         }
-        /// Accumulate denoms and numers
+    }
+    #pragma omp parallel default(shared)
+#else  // not HAVE_MPI
+    float *localNumerator;
+    float localDenominator = 0;
+    #pragma omp parallel default(shared) private(localDenominator) private(localNumerator)
+#endif
+    {
+#ifndef HAVE_MPI
+        localNumerator = new float[nDimensions];
+#endif // HAVE_MPI
         #pragma omp for
+#ifdef _WIN32
+        for (int som_y = 0; som_y < nSomY; som_y++) {
+#else
         for (unsigned int som_y = 0; som_y < nSomY; som_y++) {
+#endif
             for (unsigned int som_x = 0; som_x < nSomX; som_x++) {
                 for (unsigned int n = 0; n < nVectorsPerRank; n++) {
                     if (itask * nVectorsPerRank + n < nVectors) {
@@ -366,36 +390,52 @@ void trainOneEpochDenseGPU(int itask, float *data, float *numerator,
                             }
                         }
                         float neighbor_fuct = getWeight(dist, radius, scale, compact_support, gaussian);
-
+#ifdef HAVE_MPI
                         for (unsigned int d = 0; d < nDimensions; d++) {
                             localNumerator[som_y * nSomX * nDimensions + som_x * nDimensions + d] +=
                                 1.0f * neighbor_fuct
                                 * (*(data + n * nDimensions + d));
                         }
                         localDenominator[som_y * nSomX + som_x] += neighbor_fuct;
+#else // In this case, we can update in place
+                        if (n == 0) {
+                            localDenominator = neighbor_fuct;
+                            for (unsigned int d = 0; d < nDimensions; d++) {
+                                localNumerator[d] = 1.0f * neighbor_fuct
+                                    * (*(data + n * nDimensions + d));
+                            }
+                         } else {
+                            localDenominator += neighbor_fuct;
+                            for (unsigned int d = 0; d < nDimensions; d++) {
+                                localNumerator[d] += 1.0f * neighbor_fuct
+                                    * (*(data + n * nDimensions + d));
+                            }
+                         }
+#endif // HAVE_MPI                        
+                    }
+                } // Looping over data instances
+#ifndef HAVE_MPI // We update in-place
+                for (unsigned int d = 0; d < nDimensions; d++) {
+                    float newWeight = localNumerator[d] / localDenominator;
+                    if (newWeight > 0.0) {
+                        codebook[som_y * nSomX * nDimensions + som_x * nDimensions + d] = newWeight;
                     }
                 }
-            }
-        }
-    }
+#endif
+            } // Looping over som_x
+        } // Looping over som_y
+#ifndef HAVE_MPI
+    delete [] localNumerator;
+#endif
+    } // OPENMP
 #ifdef HAVE_MPI
     MPI_Reduce(localNumerator, numerator,
                nSomY * nSomX * nDimensions, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(localDenominator, denominator,
                nSomY * nSomX, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Gather(bmus, nVectorsPerRank * 2, MPI_INT, globalBmus, nVectorsPerRank * 2, MPI_INT, 0, MPI_COMM_WORLD);
-#else
-    for (unsigned int i = 0; i < nSomY * nSomX * nDimensions; ++i) {
-        numerator[i] = localNumerator[i];
-    }
-    for (unsigned int i = 0; i < nSomY * nSomX; ++i) {
-        denominator[i] = localDenominator[i];
-    }
-    for (unsigned int i = 0; i < 2 * nVectorsPerRank; ++i) {
-        globalBmus[i] = bmus[i];
-    }
-#endif
     delete [] bmus;
     delete [] localNumerator;
     delete [] localDenominator;
+#endif
 }
