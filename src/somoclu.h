@@ -53,7 +53,7 @@ float euclideanDistanceOnToroidMap(const unsigned int som_x, const unsigned int 
 float euclideanDistanceOnPlanarMap(const unsigned int som_x, const unsigned int som_y, const unsigned int x, const unsigned int y);
 float euclideanDistanceOnHexagonalToroidMap(const unsigned int som_x, const unsigned int som_y, const unsigned int x, const unsigned int y, const unsigned int nSomX, const unsigned int nSomY);
 float euclideanDistanceOnHexagonalPlanarMap(const unsigned int som_x, const unsigned int som_y, const unsigned int x, const unsigned int y);
-float getWeight(float distance, float radius, float scaling, bool compact_support, bool gaussian);
+float getWeight(float distance, float radius, float scaling, bool compact_support, bool gaussian, float std_coeff);
 int saveCodebook(string cbFileName, float *codebook,
                  unsigned int nSomX, unsigned int nSomY, unsigned int nDimensions);
 float *calculateUMatrix(float* uMatrix, float *codebook, unsigned int nSomX,
@@ -76,23 +76,24 @@ void trainOneEpoch(int itask, float *data, svm_node **sparseData,
                    unsigned int nSomX, unsigned int nSomY,
                    unsigned int nDimensions, unsigned int nVectors,
                    unsigned int nVectorsPerRank,
-                   unsigned int radius0, unsigned int radiusN,
+                   float radius0, float radiusN,
                    string radiusCooling,
                    float scale0, float scaleN,
                    string scaleCooling,
                    unsigned int kernelType, string mapType,
                    string gridType, bool compact_support, bool gaussian,
-                   bool only_bmus=false);
+                   float std_coeff=0.5, bool only_bmus=false);
 void train(float *data, int data_length,
            unsigned int nEpoch,
            unsigned int nSomX, unsigned int nSomY,
            unsigned int nDimensions, unsigned int nVectors,
-           unsigned int radius0, unsigned int radiusN,
+           float radius0, float radiusN,
            string radiusCooling,
            float scale0, float scaleN,
            string scaleCooling,
            unsigned int kernelType, string mapType,
            string gridType, bool compact_support, bool gaussian,
+           float std_coeff,
            float* codebook, int codebook_size,
            int* globalBmus, int globalBmus_size,
            float* uMatrix, int uMatrix_size);
@@ -101,12 +102,12 @@ void train(int itask, float *data, svm_node **sparseData,
            unsigned int nSomX, unsigned int nSomY,
            unsigned int nDimensions, unsigned int nVectors,
            unsigned int nVectorsPerRank, unsigned int nEpoch,
-           unsigned int radius0, unsigned int radiusN,
+           float radius0, float radiusN,
            string radiusCooling,
            float scale0, float scaleN,
            string scaleCooling,
            unsigned int kernelType, string mapType,
-           string gridType, bool compact_support, bool gaussian
+           string gridType, bool compact_support, bool gaussian, float std_coeff
 #ifdef CLI
            , string outPrefix, unsigned int snapshots);
 #else
@@ -120,7 +121,7 @@ void trainOneEpochDenseCPU(int itask, float *data, float *numerator,
                            unsigned int nVectorsPerRank, float radius,
                            float scale, string mapType,
                            string gridType, bool compact_support, bool gaussian,
-                           int *globalBmus, bool only_bmus);
+                           int *globalBmus, bool only_bmus, float std_coeff);
 void trainOneEpochSparseCPU(int itask, svm_node **sparseData, float *numerator,
                             float *denominator, float *codebook,
                             unsigned int nSomX, unsigned int nSomY,
@@ -128,7 +129,7 @@ void trainOneEpochSparseCPU(int itask, svm_node **sparseData, float *numerator,
                             unsigned int nVectorsPerRank, float radius,
                             float scale, string mapType,
                             string gridType, bool compact_support, bool gaussian,
-                            int *globalBmus, bool only_bmus);
+                            int *globalBmus, bool only_bmus, float std_coeff);
 void initializeCodebook(unsigned int seed, float *codebook, unsigned int nSomX,
                         unsigned int nSomY, unsigned int nDimensions);
 
@@ -145,19 +146,20 @@ extern "C" {
                                unsigned int nVectorsPerRank, float radius,
                                float scale, string mapType,
                                string gridType, bool compact_support, bool gaussian,
-                               int *globalBmus, bool only_bmus);
+                               int *globalBmus, bool only_bmus, float std_coeff);
 #endif
     void my_abort(string err);
     void julia_train(float *data, int data_length,
                      unsigned int nEpoch,
                      unsigned int nSomX, unsigned int nSomY,
                      unsigned int nDimensions, unsigned int nVectors,
-                     unsigned int radius0, unsigned int radiusN,
+                     float radius0, float radiusN,
                      unsigned int radiusCooling,
                      float scale0, float scaleN,
                      unsigned int scaleCooling,
                      unsigned int kernelType, unsigned int mapType,
                      unsigned int gridType, bool compact_support, bool gaussian,
+                     float std_coeff,
                      float* codebook, int codebook_size,
                      int* globalBmus, int globalBmus_size,
                      float* uMatrix, int uMatrix_size);

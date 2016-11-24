@@ -17,6 +17,7 @@
  *
  */
 
+#include <cmath>
 #include "somoclu.h"
 
 #ifdef HAVE_R
@@ -84,7 +85,7 @@ void trainOneEpochSparseCPU(int itask, svm_node **sparseData, float *numerator,
                             unsigned int nVectorsPerRank, float radius,
                             float scale, string mapType, string gridType,
                             bool compact_support, bool gaussian,
-                            int *globalBmus, bool only_bmus) {
+                            int *globalBmus, bool only_bmus, float std_coeff) {
     int p1[2] = {0, 0};
     int *bmus;
 #ifdef HAVE_MPI
@@ -190,7 +191,7 @@ void trainOneEpochSparseCPU(int itask, svm_node **sparseData, float *numerator,
                                 dist = euclideanDistanceOnHexagonalToroidMap(som_x, som_y, bmus[2 * n], bmus[2 * n + 1], nSomX, nSomY);
                             }
                         }
-                        float neighbor_fuct = getWeight(dist, radius, scale, compact_support, gaussian);
+                        float neighbor_fuct = getWeight(dist, radius, scale, compact_support, gaussian, std_coeff);
 #ifdef HAVE_MPI
                         unsigned int j = 0;
                         while ( sparseData[n][j].index != -1 ) {
@@ -213,10 +214,10 @@ void trainOneEpochSparseCPU(int itask, svm_node **sparseData, float *numerator,
                 } // Looping over data instances
 #ifndef HAVE_MPI // We update in-place
                 for (unsigned int d = 0; d < nDimensions; d++) {
+                  if (localDenominator != 0) {
                     float newWeight = localNumerator[d] / localDenominator;
-                    if (newWeight > 0.0) {
-                        codebook[som_y * nSomX * nDimensions + som_x * nDimensions + d] = newWeight;
-                    }
+                    codebook[som_y * nSomX * nDimensions + som_x * nDimensions + d] = newWeight;
+                  }
                 }
 #endif
             } // Looping over som_x
