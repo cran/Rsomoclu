@@ -66,10 +66,11 @@ int saveBmus(string filename, int *bmus, unsigned int nSomX,
 float *readMatrix(const string inFilename,
                   unsigned int &nRows, unsigned int &nCols);
 void readSparseMatrixDimensions(const string filename, unsigned int &nRows,
-                                unsigned int &nColumns);
+                                unsigned int &nColumns, bool& zerobased);
 svm_node** readSparseMatrixChunk(const string filename, unsigned int nRows,
                                  unsigned int nRowsToRead,
-                                 unsigned int rowOffset);
+                                 unsigned int rowOffset,
+                                 unsigned int colOffset=0);
 void trainOneEpoch(int itask, float *data, svm_node **sparseData,
                    float *codebook, int *globalBmus,
                    unsigned int nEpoch, unsigned int currentEpoch,
@@ -93,7 +94,7 @@ void train(float *data, int data_length,
            string scaleCooling,
            unsigned int kernelType, string mapType,
            string gridType, bool compact_support, bool gaussian,
-           float std_coeff,
+           float std_coeff, unsigned int verbose,
            float* codebook, int codebook_size,
            int* globalBmus, int globalBmus_size,
            float* uMatrix, int uMatrix_size);
@@ -107,7 +108,8 @@ void train(int itask, float *data, svm_node **sparseData,
            float scale0, float scaleN,
            string scaleCooling,
            unsigned int kernelType, string mapType,
-           string gridType, bool compact_support, bool gaussian, float std_coeff
+           string gridType, bool compact_support, bool gaussian,
+           float std_coeff, unsigned int verbose
 #ifdef CLI
            , string outPrefix, unsigned int snapshots);
 #else
@@ -147,9 +149,17 @@ extern "C" {
                                float scale, string mapType,
                                string gridType, bool compact_support, bool gaussian,
                                int *globalBmus, bool only_bmus, float std_coeff);
+
+
 #endif
-    void my_abort(string err);
-    void julia_train(float *data, int data_length,
+
+#ifdef _WIN32
+	__declspec(dllexport) void my_abort(string err);
+	__declspec(dllexport) void julia_train(float *data, int data_length,
+#else
+	void my_abort(string err);
+	void julia_train(float *data, int data_length,
+#endif
                      unsigned int nEpoch,
                      unsigned int nSomX, unsigned int nSomY,
                      unsigned int nDimensions, unsigned int nVectors,
@@ -159,7 +169,7 @@ extern "C" {
                      unsigned int scaleCooling,
                      unsigned int kernelType, unsigned int mapType,
                      unsigned int gridType, bool compact_support, bool gaussian,
-                     float std_coeff,
+                     float std_coeff, unsigned int verbose,
                      float* codebook, int codebook_size,
                      int* globalBmus, int globalBmus_size,
                      float* uMatrix, int uMatrix_size);

@@ -1,6 +1,6 @@
 library('Rsomoclu')
-data_file <- system.file("data", "rgbs.txt.gz", package = 'Rsomoclu')
-input_data <- read.table(data_file)
+data("rgbs", package = "Rsomoclu")
+input_data <- rgbs
 input_data <- data.matrix(input_data)
 nSomX <- 50
 nSomY <- 50
@@ -35,4 +35,4 @@ plot(sommap, type="codes", main = c("Codes X", "Codes Y"))
 plot(sommap, type = "property", property = sommap$codes[,1],
      main = colnames(sommap$codes)[1])
 ## Show 'U-Matrix'
-plot(sommap, type="dist.neighbours")
+#plot(sommap, type="dist.neighbours")
