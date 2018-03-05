@@ -22,7 +22,7 @@ res <- Rsomoclu.train(input_data, nEpoch, nSomX, nSomY,
                       radius0, radiusN,
                       radiusCooling, scale0, scaleN,
                       scaleCooling,
-                      kernelType, mapType, gridType,
+                      kernelType, mapType, gridType, 
                       compactSupport, neighborhood, stdCoeff, codebook)
 res$codebook
 res$globalBmus
