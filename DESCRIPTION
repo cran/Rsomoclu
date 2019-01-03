@@ -1,8 +1,7 @@
 Package: Rsomoclu
-Version: 1.7.5.2
-Date: 2018-11-29
+Version: 1.7.5.3
+Date: 2019-01-03
 Title: Somoclu
-Depends: Rcpp
 Imports: kohonen
 Suggests:
 Authors@R: c(person(given = "Peter", family = "Wittek", role = c("aut"), email = ""),
@@ -11,7 +10,7 @@ Description: Somoclu is a massively parallel implementation of self-organizing m
 URL: http://peterwittek.github.io/somoclu/
 BugReports: https://github.com/peterwittek/somoclu/issues
 License: GPL-3
-Packaged: 2018-11-29 12:24:03 UTC; gsc
+Packaged: 2019-01-03 14:52:27 UTC; gsc
 Author: Peter Wittek [aut],
   Shichao Gao [cre]
 Maintainer: Shichao Gao <xgdgsc@gmail.com>
@@ -19,4 +18,4 @@ NeedsCompilation: yes
 Repository: CRAN
 SystemRequirements: C++11
 LinkingTo: Rcpp
-Date/Publication: 2018-11-29 14:30:10 UTC
+Date/Publication: 2019-01-03 15:40:03 UTC
