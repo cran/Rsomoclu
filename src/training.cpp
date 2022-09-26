@@ -20,14 +20,15 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #ifndef HAVE_MPI
 #include <stdexcept>
 #endif
 
 #include "somoclu.h"
-
+#ifndef HAVE_R
 using namespace std;
-
+#endif
 // From https://stackoverflow.com/questions/17432502/how-can-i-measure-cpu-time-and-wall-clock-time-on-both-linux-windows
 //  Windows
 #ifdef _WIN32
@@ -61,6 +62,7 @@ double get_wall_time(){
 
 #ifdef HAVE_R
 #include <Rcpp.h>
+using Rcpp::Rcerr;
 #else
 #include <iostream>
 #include <iomanip>
@@ -89,7 +91,7 @@ void train(float *data, int data_length, unsigned int nEpoch,
            float std_coeff, unsigned int verbose,
            float *codebook, int codebook_size,
            int *globalBmus, int globalBmus_size,
-           float *uMatrix, int uMatrix_size) {
+           float *uMatrix, int uMatrix_size, string vect_distance) {
 #ifdef HAVE_R
 #ifndef CUDA
     if(kernelType == DENSE_GPU){
@@ -98,6 +100,20 @@ void train(float *data, int data_length, unsigned int nEpoch,
     }
 #endif // CUDA
 #endif // HAVE_R
+    Distance *d = 0;
+    float p;
+    if (vect_distance == "norm-inf")
+      d = new NormInfDistance(nDimensions);
+    else if (sscanf(vect_distance.c_str(), "norm-%f", &p) == 1 && p > 0)
+      d = new NormPDistance(nDimensions, p);
+    else if (vect_distance != "euclidean")
+    #ifndef HAVE_R
+      fprintf(stderr, "Warning: incorrect vect_distance: %s (falling back to euclidean)\n", vect_distance.c_str());
+    #else
+        Rcerr << "Warning: incorrect vect_distance: "<<vect_distance<<" (falling back to euclidean)\n";
+    #endif
+    if (d == 0)
+      d = new EuclideanDistance(nDimensions);
     som map = {
         nSomX,
         nSomY,
@@ -105,7 +121,7 @@ void train(float *data, int data_length, unsigned int nEpoch,
         nVectors,
         mapType,
         gridType,
-		*(new EuclideanDistance(nDimensions)),
+        *d,
         uMatrix,
         codebook,
         globalBmus};
